@@ -1,23 +1,7 @@
-"""
-URL configuration for stock_control_api project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-
+from products.views import ProductExportAPIView, SystemBackupAPIView  # Importações novas
 
 def api_root(request):
     """
@@ -29,6 +13,8 @@ def api_root(request):
         'endpoints': {
             'authentication': '/api/auth/',
             'products': '/api/products/',
+            'export_products': '/api/products/export/',
+            'system_backup': '/api/backup/',
             'admin': '/admin/',
         }
     })
@@ -39,5 +25,8 @@ urlpatterns = [
     path('api/', api_root, name='api-root'),
     path('api/auth/', include('authentication.urls')),
     path('api/products/', include('products.urls')),
+    
+    # Novos endpoints de exportação/backup
+    path('api/products/export/', ProductExportAPIView.as_view(), name='export-products'),
+    path('api/backup/', SystemBackupAPIView.as_view(), name='system-backup'),
 ]
-

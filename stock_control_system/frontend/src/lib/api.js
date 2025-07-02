@@ -1,18 +1,18 @@
 import axios from 'axios';
 
-// Configuração base da API
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api'; // Verifique a URL se necessário
 
-// Instância do axios com configurações padrão
+// Instância do axios
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    },
-    timeout: 10000, // 10 segundos, por exemplo
+    'Accept': 'application/json',
+  },
 });
 
-// Interceptor para adicionar o token JWT automaticamente
+// Interceptor para token JWT
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
@@ -21,16 +21,12 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor para lidar com respostas e renovar token se necessário
+// Interceptor para renovação de token
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
@@ -46,16 +42,12 @@ api.interceptors.response.use(
 
           const { access } = response.data;
           localStorage.setItem('access_token', access);
-
-          // Retry the original request with new token
           originalRequest.headers.Authorization = `Bearer ${access}`;
+
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh token inválido, redireciona para o login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
+        localStorage.clear();
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }
@@ -65,10 +57,11 @@ api.interceptors.response.use(
   }
 );
 
-// Funções de autenticação
+// --- Módulos auxiliares ---
+
 export const authAPI = {
   login: async (credentials) => {
-    const response = await api.post('/auth/token/', credentials); // CORRIGIDO
+    const response = await api.post('/auth/token/', credentials);
     const { access, refresh, user } = response.data;
 
     localStorage.setItem('access_token', access);
@@ -84,9 +77,7 @@ export const authAPI = {
   },
 
   logout: () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    localStorage.clear();
   },
 
   getCurrentUser: () => {
@@ -102,13 +93,12 @@ export const authAPI = {
     try {
       const response = await api.get('/auth/check-auth/');
       return response.data;
-    } catch (error) {
+    } catch {
       return null;
     }
   },
 };
 
-// Funções para produtos
 export const productsAPI = {
   getAll: async (params = {}) => {
     const response = await api.get('/products/', { params });
@@ -120,13 +110,13 @@ export const productsAPI = {
     return response.data;
   },
 
-  create: async (productData) => {
-    const response = await api.post('/products/', productData);
+  create: async (data) => {
+    const response = await api.post('/products/', data);
     return response.data;
   },
 
-  update: async (id, productData) => {
-    const response = await api.put(`/products/${id}/`, productData);
+  update: async (id, data) => {
+    const response = await api.put(`/products/${id}/`, data);
     return response.data;
   },
 
@@ -145,13 +135,18 @@ export const productsAPI = {
     return response.data;
   },
 
-  getLowStock: async (minQuantity = 10) => {
-    const response = await api.get('/products/low-stock/', { params: { min_quantity: minQuantity } });
+  getLowStock: async (min = 10) => {
+    const response = await api.get('/products/low-stock/', { params: { min_quantity: min } });
     return response.data;
+  },
+
+  export: async (format = 'csv') => {
+    return await api.get(`/products/export/?format=${format}`, {
+      responseType: 'blob',
+    });
   },
 };
 
-// Funções para dashboard
 export const dashboardAPI = {
   getStats: async () => {
     const response = await api.get('/products/dashboard/stats/');
@@ -159,4 +154,14 @@ export const dashboardAPI = {
   },
 };
 
+export const systemAPI = {
+  downloadBackup: async () => {
+    return await api.get('/backup/', {
+      responseType: 'blob',
+    });
+  },
+};
+
+// Exporte como default e nomeado
+export { api };
 export default api;

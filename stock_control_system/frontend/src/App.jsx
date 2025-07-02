@@ -1,3 +1,5 @@
+// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -7,6 +9,7 @@ import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
+import ExportPage from './components/ExportPage'; // Adicionada a importação da nova página
 import './App.css';
 
 function App() {
@@ -30,6 +33,7 @@ function App() {
               <Route path="products" element={<ProductList />} />
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/:id/edit" element={<ProductForm />} />
+              <Route path="exports" element={<ExportPage />} /> {/* Nova rota adicionada aqui */}
             </Route>
 
             {/* Rota de fallback */}
@@ -42,4 +46,3 @@ function App() {
 }
 
 export default App;
-

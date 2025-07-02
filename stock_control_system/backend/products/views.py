@@ -7,6 +7,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Sum, Count
 from django.utils import timezone
 from datetime import date, timedelta
+from django.core.management import call_command
+from io import BytesIO
+import zipfile
 
 from .models import Product, MovimentacaoEstoque, AlertaEstoque
 from .serializers import (
@@ -18,6 +21,7 @@ from .serializers import (
     AlertaEstoqueSerializer
 )
 from .filters import ProductFilter
+from core.renderers import CustomCSVRenderer, XLSXRenderer  # renderers para exportação
 
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -177,3 +181,52 @@ def low_stock_products(request):
     products = Product.objects.filter(quantidade__lte=min_quantity).order_by('quantidade')
     serializer = ProductListSerializer(products, many=True)
     return Response(serializer.data)
+
+
+# -------------------------
+# EXPORTAÇÃO E BACKUP
+# -------------------------
+
+class ProductExportAPIView(APIView):
+    renderer_classes = [CustomCSVRenderer, XLSXRenderer]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """
+        Exporta produtos em CSV ou XLSX.
+        Use o query param `?format=csv` ou `?format=xlsx`.
+        """
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True)
+        data = serializer.data
+
+        file_format = request.query_params.get('format', 'csv')
+        filename = f"produtos_{timezone.now().strftime('%Y%m%d')}.{file_format}"
+        headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+
+        return Response(data, headers=headers)
+
+
+class SystemBackupAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """
+        Gera um backup do banco de dados (dumpdata) e o comprime em um arquivo ZIP.
+        """
+        buffer = BytesIO()
+        call_command('dumpdata', stdout=buffer)
+        buffer.seek(0)
+        db_dump_data = buffer.read()
+
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            dump_filename = f"db_backup_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+            zip_file.writestr(dump_filename, db_dump_data)
+
+        zip_buffer.seek(0)
+        zip_filename = f"backup_completo_{timezone.now().strftime('%Y%m%d')}.zip"
+        response = Response(zip_buffer.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+
+        return response
