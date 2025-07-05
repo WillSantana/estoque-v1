@@ -1,45 +1,24 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+/* src/index.css */
 
-@custom-variant dark (&:is(.dark *));
+/* Diretivas essenciais do TailwindCSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* 
-  Esta seção embutida permite que o Tailwind use nossas variáveis CSS.
-  Não precisa ser alterada.
+/* Se você tinha o @import "tw-animate-css"; e o removeu, certifique-se que não há outros @import problemáticos */
+/* Se você ainda quer usar tw-animate-css, certifique-se de que ele está instalado e a linha abaixo está descomentada */
+/* @import "tw-animate-css"; */
+
+
+/*
+  As variáveis CSS que você definiu no :root e .dark no seu index.css anterior
+  devem ser mantidas aqui, abaixo das diretivas @tailwind.
+  Elas serão usadas pelo Tailwind para gerar as classes como bg-background, text-primary, etc.
 */
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-}
 
-/* :root define as variáveis para o tema claro (light mode) */
+/* Exemplo das variáveis que você tinha, ajuste conforme seu design */
 :root {
-  --radius: 0.75rem; /* Aumentei o raio para cantos mais arredondados */
+  --radius: 0.75rem;
   --background: oklch(0.98 0.01 110); /* Um cinza muito claro, quase branco */
   --foreground: oklch(0.15 0 0); /* Preto suave para texto */
   
@@ -49,11 +28,9 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0 0);
   
-  /* Cor primária (verde principal) */
-  --primary: oklch(0.65 0.18 150);
+  --primary: oklch(0.65 0.18 150); /* Verde principal do design */
   --primary-foreground: oklch(1 0 0);
   
-  /* Cores secundárias e de destaque */
   --secondary: oklch(0.95 0.03 110);
   --secondary-foreground: oklch(0.25 0 0);
   
@@ -63,44 +40,12 @@
   --accent: oklch(0.97 0.02 110);
   --accent-foreground: oklch(0.25 0 0);
   
-  --destructive: oklch(0.65 0.22 25); /* Vermelho para alertas */
+  --destructive: oklch(0.65 0.22 25);
   
   --border: oklch(0.92 0.02 110);
   --input: oklch(0.92 0.02 110);
   --ring: oklch(0.65 0.18 150 / 50%);
 
-  /* Cores para os gráficos, baseadas no print */
-  --chart-1: oklch(0.6 0.17 155); /* Verde principal do gráfico */
-  --chart-2: oklch(0.7 0.15 150);
-  --chart-3: oklch(0.8 0.13 145);
-  --chart-4: oklch(0.9 0.1 140);
-  --chart-5: oklch(0.5 0.2 160);
-}
-
-/* 
-  O tema escuro (.dark) não está no design, mas podemos mantê-lo 
-  para futuras implementações. Não precisa ser alterado agora.
-*/
-.dark {
-  --radius: 0.75rem;
-  --background: oklch(0.1 0.02 260);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.12 0.02 260);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.12 0.02 260);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.65 0.18 150);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.2 0.02 260);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.2 0.02 260);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.25 0.02 260);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(1 0 0 / 15%);
-  --input: oklch(1 0 0 / 20%);
-  --ring: oklch(0.65 0.18 150 / 50%);
   --chart-1: oklch(0.6 0.17 155);
   --chart-2: oklch(0.7 0.15 150);
   --chart-3: oklch(0.8 0.13 145);
@@ -108,10 +53,16 @@
   --chart-5: oklch(0.5 0.2 160);
 }
 
+/* Se você tem um tema dark, mantenha-o aqui */
+.dark {
+  /* ... suas variáveis para o tema dark ... */
+}
+
 /* Estilos base */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-[color:var(--ring)] outline-1;
+
   }
   body {
     @apply bg-background text-foreground;

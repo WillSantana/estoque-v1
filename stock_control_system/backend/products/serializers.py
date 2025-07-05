@@ -1,154 +1,121 @@
+# products/serializers.py
+
 from rest_framework import serializers
 from .models import Product, MovimentacaoEstoque, AlertaEstoque
-from django.contrib.auth.models import User
 
-
+print("DEBUG: products/serializers.py está sendo carregado!") # <-- ADICIONE ESTA LINHA
 
 class ProductSerializer(serializers.ModelSerializer):
     """
-    Serializer para o modelo Product.
+    Serializador padrão para o modelo Product.
+    Usado para operações CRUD gerais.
     """
-    valor_total = serializers.ReadOnlyField()
-    dias_para_vencimento = serializers.ReadOnlyField()
-    status_validade = serializers.ReadOnlyField()
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
-
     class Meta:
         model = Product
-        fields = [
-            'id',
-            'tipo_produto',
-            'marca',
-            'quantidade',
-            'peso',
-            'fornecedor',
-            'preco',
-            'data_compra',
-            'data_validade',
-            'observacoes',
-            'valor_total',
-            'dias_para_vencimento',
-            'status_validade',
-            'created_at',
-            'updated_at',
-            'created_by',
-            'created_by_username'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
+        fields = '__all__'
 
-    def validate_quantidade(self, value):
-        """Valida se a quantidade é positiva."""
-        if value <= 0:
-            raise serializers.ValidationError("A quantidade deve ser maior que zero.")
-        return value
+    def __init__(self, *args, **kwargs):
+        # Permite passar um argumento 'fields' para incluir/excluir campos dinamicamente
+        # Útil para a exportação, onde alguns campos podem ser opcionais.
+        fields = kwargs.pop('fields', None)
 
-    def validate_peso(self, value):
-        """Valida se o peso é positivo."""
-        if value <= 0:
-            raise serializers.ValidationError("O peso deve ser maior que zero.")
-        return value
+        super().__init__(*args, **kwargs)
 
-    def validate_preco(self, value):
-        """Valida se o preço é positivo."""
-        if value <= 0:
-            raise serializers.ValidationError("O preço deve ser maior que zero.")
-        return value
-
-    def validate(self, data):
-        """Validação customizada para datas."""
-        data_compra = data.get('data_compra')
-        data_validade = data.get('data_validade')
-        
-        if data_compra and data_validade:
-            if data_validade <= data_compra:
-                raise serializers.ValidationError(
-                    "A data de validade deve ser posterior à data de compra."
-                )
-        
-        return data
+        if fields is not None:
+            # Remove os campos que não estão na lista de 'fields'
+            allowed = set(fields)
+            existing = set(self.fields)
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
 
 
-class ProductCreateSerializer(ProductSerializer):
+class ProductCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer específico para criação de produtos.
+    Serializador para criação de produtos, excluindo campos gerenciados pelo sistema.
     """
-    class Meta(ProductSerializer.Meta):
-        fields = [
-            'tipo_produto',
-            'marca',
-            'quantidade',
-            'peso',
-            'fornecedor',
-            'preco',
-            'data_compra',
-            'data_validade',
-            'observacoes'
-        ]
+    class Meta:
+        model = Product
+        exclude = ['created_by', 'created_at'] # created_by e created_at são preenchidos automaticamente
 
 
 class ProductListSerializer(serializers.ModelSerializer):
     """
-    Serializer simplificado para listagem de produtos.
+    Serializador para listar produtos, adaptando nomes de campos para o frontend.
     """
-    valor_total = serializers.ReadOnlyField()
-    status_validade = serializers.ReadOnlyField()
+    nome = serializers.CharField(source='tipo_produto', read_only=True)
+    distribuidora = serializers.CharField(source='fornecedor', read_only=True)
+    unidades = serializers.IntegerField(source='quantidade', read_only=True)
+    
+    # Usamos SerializerMethodField para formatar 'created_at' como 'data_cadastro'
+    # e garantir que ele seja um objeto date.
+    data_cadastro = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id',
-            'tipo_produto',
+            'nome',
             'marca',
-            'quantidade',
-            'peso',
-            'fornecedor',
+            'distribuidora',
             'preco',
-            'data_compra',
-            'data_validade',
-            'valor_total',
-            'status_validade'
+            'unidades',
+            'data_cadastro', # Este campo será preenchido pelo get_data_cadastro
         ]
+
+    def get_data_cadastro(self, obj):
+        print(f"DEBUG: Tipo de obj em get_data_cadastro: {type(obj)}") # <-- ADICIONE ESTA LINHA
+        print(f"DEBUG: obj: {obj}") # <-- ADICIONE ESTA LINHA
+        return obj.created_at.date() if obj.created_at else None
+
+
 class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
-    produto_descricao = serializers.CharField(source='produto.descricao', read_only=True)
-    usuario_nome = serializers.CharField(source='usuario.username', read_only=True)
-    
+    """
+    Serializador para o modelo MovimentacaoEstoque.
+    """
     class Meta:
         model = MovimentacaoEstoque
         fields = '__all__'
-        read_only_fields = ('data', 'usuario')
 
-class DashboardStatsSerializer(serializers.Serializer):
-    """
-    Serializer para estatísticas do dashboard.
-    """
-    total_produtos = serializers.IntegerField()
-    total_valor_estoque = serializers.DecimalField(max_digits=15, decimal_places=2)
-    produtos_vencidos = serializers.IntegerField()
-    produtos_proximos_vencimento = serializers.IntegerField()
-    marcas_mais_registradas = serializers.ListField(
-        child=serializers.DictField()
-    )
-    tipos_mais_registrados = serializers.ListField(
-        child=serializers.DictField()
-    )
-    fornecedores_mais_utilizados = serializers.ListField(
-        child=serializers.DictField()
-    )
 
 class AlertaEstoqueSerializer(serializers.ModelSerializer):
+    """
+    Serializador para o modelo AlertaEstoque, incluindo detalhes do produto relacionado.
+    """
     produto_nome = serializers.CharField(source='produto.tipo_produto', read_only=True)
+    produto_marca = serializers.CharField(source='produto.marca', read_only=True)
+    produto_validade = serializers.DateField(source='produto.data_validade', read_only=True)
+    produto_quantidade = serializers.IntegerField(source='produto.quantidade', read_only=True)
 
     class Meta:
         model = AlertaEstoque
         fields = [
             'id',
-            'produto',
             'produto_nome',
-            'tipo',
+            'produto_marca',
+            'produto_validade',
+            'produto_quantidade',
             'mensagem',
-            'nivel',
-            'resolvido',
             'criado_em',
+            'resolvido',
             'resolvido_em',
         ]
-        read_only_fields = ['criado_em', 'resolvido_em']
+
+
+class DashboardStatsSerializer(serializers.Serializer):
+    """
+    Serializador para os dados estatísticos do Dashboard.
+    """
+    total_produtos = serializers.IntegerField()
+    total_unidades = serializers.IntegerField()
+    total_valor_estoque = serializers.DecimalField(max_digits=12, decimal_places=2)
+    produtos_vencidos = serializers.IntegerField()
+    produtos_proximos_vencimento = serializers.IntegerField()
+    marcas_mais_registradas = serializers.ListField() # Lista de dicionários (ex: {'marca': 'Royal Canin', 'total': 5})
+    produtos_por_tipo = serializers.ListField()      # Lista de dicionários (ex: {'name': 'Ração', 'value': 3})
+    
+    # Usa o ProductListSerializer para serializar os produtos recentes
+    produtos_recentes = ProductListSerializer(many=True) 
+    
+    alertas_vencimento = AlertaEstoqueSerializer(many=True)
+
+

@@ -9,8 +9,9 @@ import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
 import ProductForm from './components/ProductForm';
-import ExportPage from './components/ExportPage'; // Adicionada a importação da nova página
-import './App.css';
+import ExportPage from './components/ExportPage';
+import ReloadPrompt from './components/ReloadPrompt'; // Componente PWA
+import './App.css'; // Certifique-se que este arquivo existe e não tem erros
 
 function App() {
   return (
@@ -21,28 +22,32 @@ function App() {
             {/* Rotas públicas */}
             <Route path="/login" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
-            
+
             {/* Rotas protegidas */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }>
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="products" element={<ProductList />} />
               <Route path="products/new" element={<ProductForm />} />
               <Route path="products/:id/edit" element={<ProductForm />} />
-              <Route path="exports" element={<ExportPage />} /> {/* Nova rota adicionada aqui */}
+              <Route path="exports" element={<ExportPage />} />
             </Route>
 
             {/* Rota de fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          {/* Componente que avisa sobre atualizações disponíveis */}
+          <ReloadPrompt />
         </div>
       </Router>
     </AuthProvider>
   );
-}
-
+} // <-- ADICIONE ESTE FECHAMENTO
 export default App;

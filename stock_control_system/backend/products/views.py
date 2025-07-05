@@ -1,14 +1,18 @@
 from rest_framework import generics, status, filters, viewsets
-from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Sum, Count
+from django.db.models import Sum, Count, F, Case, When, Value, DecimalField
 from django.utils import timezone
 from datetime import date, timedelta
 from django.core.management import call_command
-from io import BytesIO
+from django.http import HttpResponse
+
+import csv
+import io
 import zipfile
 
 from .models import Product, MovimentacaoEstoque, AlertaEstoque
@@ -18,28 +22,26 @@ from .serializers import (
     ProductListSerializer,
     DashboardStatsSerializer,
     MovimentacaoEstoqueSerializer,
-    AlertaEstoqueSerializer
+    AlertaEstoqueSerializer,
 )
 from .filters import ProductFilter
-from core.renderers import CustomCSVRenderer, XLSXRenderer  # renderers para exportação
 
 
+# ViewSet para MovimentacaoEstoque
+class MovimentacaoEstoqueViewSet(viewsets.ModelViewSet):
+    queryset = MovimentacaoEstoque.objects.all()
+    serializer_class = MovimentacaoEstoqueSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# CRUD Produtos
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_class = ProductFilter
-    search_fields = ['tipo_produto', 'marca', 'fornecedor', 'observacoes']
-    ordering_fields = ['created_at', 'data_compra', 'data_validade', 'preco', 'quantidade']
-    ordering = ['-created_at']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return ProductCreateSerializer
-        return ProductListSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        return ProductSerializer
 
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -48,68 +50,28 @@ class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
 
-class MovimentacaoEstoqueViewSet(viewsets.ModelViewSet):
-    queryset = MovimentacaoEstoque.objects.all()
-    serializer_class = MovimentacaoEstoqueSerializer
-    permission_classes = [IsAuthenticated]
-    filterset_fields = ['produto', 'tipo', 'motivo', 'data']
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        data_inicio = self.request.query_params.get('data_inicio')
-        data_fim = self.request.query_params.get('data_fim')
-        if data_inicio and data_fim:
-            queryset = queryset.filter(data__date__gte=data_inicio, data__date__lte=data_fim)
-        return queryset
-
-    def perform_create(self, serializer):
-        serializer.save(usuario=self.request.user)
-
-
-class AlertaEstoqueViewSet(viewsets.ModelViewSet):
-    queryset = AlertaEstoque.objects.filter(resolvido=False)
-    serializer_class = AlertaEstoqueSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=True, methods=['post'])
-    def resolver(self, request, pk=None):
-        alerta = self.get_object()
-        alerta.resolvido = True
-        alerta.resolvido_em = timezone.now()
-        alerta.save()
-        return Response({'status': 'alerta resolvido'})
-
-
-class RelatoriosView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        produtos_baixo_estoque = Product.objects.filter(quantidade__lte=5).count()
-        date_limit = timezone.now().date() + timedelta(days=30)
-        produtos_proximo_vencer = Product.objects.filter(
-            data_validade__lte=date_limit,
-            data_validade__gte=timezone.now().date()
-        ).count()
-        movimentacoes_recentes = MovimentacaoEstoque.objects.filter(
-            data__gte=timezone.now() - timedelta(days=30)
-        ).count()
-        valor_total = sum(
-            produto.quantidade * produto.preco for produto in Product.objects.all()
-        )
-
-        return Response({
-            'produtos_baixo_estoque': produtos_baixo_estoque,
-            'produtos_proximo_vencer': produtos_proximo_vencer,
-            'movimentacoes_recentes': movimentacoes_recentes,
-            'valor_total_estoque': valor_total,
-        })
-
-
+# Estatísticas do dashboard
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_stats(request):
     total_produtos = Product.objects.count()
-    total_valor_estoque = Product.objects.aggregate(total=Sum('preco') * Sum('quantidade'))['total'] or 0
+    total_unidades = Product.objects.aggregate(total=Sum('quantidade'))['total'] or 0
+
+    total_valor_estoque = Product.objects.annotate(
+        preco_safe=Case(
+            When(preco__isnull=True, then=Value(0)),
+            default=F('preco'),
+            output_field=DecimalField(),
+        ),
+        quantidade_safe=Case(
+            When(quantidade__isnull=True, then=Value(0)),
+            default=F('quantidade'),
+            output_field=DecimalField(),
+        ),
+    ).aggregate(
+        total=Sum(F('preco_safe') * F('quantidade_safe'))
+    )['total'] or 0
+
     produtos_vencidos = Product.objects.filter(data_validade__lt=date.today()).count()
 
     data_limite = date.today() + timedelta(days=30)
@@ -119,114 +81,120 @@ def dashboard_stats(request):
     ).count()
 
     marcas_mais_registradas = list(
-        Product.objects.values('marca').annotate(count=Count('marca')).order_by('-count')[:5]
-    )
-    tipos_mais_registrados = list(
-        Product.objects.values('tipo_produto').annotate(count=Count('tipo_produto')).order_by('-count')[:5]
-    )
-    fornecedores_mais_utilizados = list(
-        Product.objects.values('fornecedor').annotate(count=Count('fornecedor')).order_by('-count')[:5]
+        Product.objects.values('marca').annotate(total=Count('marca')).order_by('-total')[:5]
     )
 
-    stats_data = {
+    produtos_por_tipo = list(
+        Product.objects.values('tipo_produto').annotate(total=Count('tipo_produto')).order_by('-total')[:5]
+    )
+
+    produtos_recentes = Product.objects.order_by('-created_at')[:5]
+    produtos_recentes_serialized = ProductListSerializer(produtos_recentes, many=True).data
+
+    alertas = AlertaEstoque.objects.filter(resolvido=False).order_by('criado_em')[:5]
+    alertas_serialized = AlertaEstoqueSerializer(alertas, many=True).data
+
+    response_data = {
         'total_produtos': total_produtos,
+        'total_unidades': total_unidades,
         'total_valor_estoque': total_valor_estoque,
         'produtos_vencidos': produtos_vencidos,
         'produtos_proximos_vencimento': produtos_proximos_vencimento,
         'marcas_mais_registradas': marcas_mais_registradas,
-        'tipos_mais_registrados': tipos_mais_registrados,
-        'fornecedores_mais_utilizados': fornecedores_mais_utilizados,
+        'produtos_por_tipo': [
+            {'name': item['tipo_produto'], 'value': item['total']}
+            for item in produtos_por_tipo
+        ],
+        'produtos_recentes': produtos_recentes_serialized,
+        'alertas_vencimento': alertas_serialized,
     }
 
-    serializer = DashboardStatsSerializer(stats_data)
+    serializer = DashboardStatsSerializer(response_data)
     return Response(serializer.data)
 
+
+# Views para produtos específicos do dashboard
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def products_expiring_soon(request):
-    days = request.GET.get('days', 30)
-    try:
-        days = int(days)
-    except ValueError:
-        days = 30
-
-    data_limite = date.today() + timedelta(days=days)
-    products = Product.objects.filter(
-        data_validade__gte=date.today(),
-        data_validade__lte=data_limite
-    ).order_by('data_validade')
-
-    serializer = ProductListSerializer(products, many=True)
+    limite = date.today() + timedelta(days=30)
+    produtos = Product.objects.filter(data_validade__gte=date.today(), data_validade__lte=limite).order_by('data_validade')
+    serializer = ProductListSerializer(produtos, many=True)
     return Response(serializer.data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def products_expired(request):
-    products = Product.objects.filter(data_validade__lt=date.today()).order_by('data_validade')
-    serializer = ProductListSerializer(products, many=True)
+    produtos = Product.objects.filter(data_validade__lt=date.today()).order_by('-data_validade')
+    serializer = ProductListSerializer(produtos, many=True)
     return Response(serializer.data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def low_stock_products(request):
-    min_quantity = request.GET.get('min_quantity', 10)
-    try:
-        min_quantity = int(min_quantity)
-    except ValueError:
-        min_quantity = 10
-
-    products = Product.objects.filter(quantidade__lte=min_quantity).order_by('quantidade')
-    serializer = ProductListSerializer(products, many=True)
+    limite = 5  # limite para estoque baixo, pode ajustar conforme necessário
+    produtos = Product.objects.filter(quantidade__lte=limite).order_by('quantidade')
+    serializer = ProductListSerializer(produtos, many=True)
     return Response(serializer.data)
 
 
-# -------------------------
-# EXPORTAÇÃO E BACKUP
-# -------------------------
-
+# Exportação CSV de produtos filtrados
 class ProductExportAPIView(APIView):
-    renderer_classes = [CustomCSVRenderer, XLSXRenderer]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        """
-        Exporta produtos em CSV ou XLSX.
-        Use o query param `?format=csv` ou `?format=xlsx`.
-        """
-        products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
-        data = serializer.data
+    def get(self, request):
+        filterset = ProductFilter(request.GET, queryset=Product.objects.all())
+        if not filterset.is_valid():
+            return Response(filterset.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        file_format = request.query_params.get('format', 'csv')
-        filename = f"produtos_{timezone.now().strftime('%Y%m%d')}.{file_format}"
-        headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+        produtos = filterset.qs
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow([
+            'ID', 'Tipo do Produto', 'Marca', 'Quantidade', 'Peso',
+            'Fornecedor', 'Preço', 'Data de Compra', 'Data de Validade',
+            'Valor Total', 'Criado em'
+        ])
+        for p in produtos:
+            writer.writerow([
+                p.id, p.tipo_produto, p.marca, p.quantidade, p.peso,
+                p.fornecedor, p.preco, p.data_compra, p.data_validade,
+                (p.quantidade or 0) * (p.preco or 0), p.created_at
+            ])
+        response = HttpResponse(buffer.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=produtos_exportados.csv'
+        return response
 
-        return Response(data, headers=headers)
 
-
+# Backup do sistema
 class SystemBackupAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        """
-        Gera um backup do banco de dados (dumpdata) e o comprime em um arquivo ZIP.
-        """
-        buffer = BytesIO()
-        call_command('dumpdata', stdout=buffer)
+    def get(self, request):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            json_io = io.StringIO()
+            call_command('dumpdata', stdout=json_io)
+            zip_file.writestr('backup.json', json_io.getvalue())
         buffer.seek(0)
-        db_dump_data = buffer.read()
-
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            dump_filename = f"db_backup_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
-            zip_file.writestr(dump_filename, db_dump_data)
-
-        zip_buffer.seek(0)
-        zip_filename = f"backup_completo_{timezone.now().strftime('%Y%m%d')}.zip"
-        response = Response(zip_buffer.read(), content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-
+        response = HttpResponse(buffer.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename=backup_sistema_{timezone.now().date()}.zip'
         return response
+
+# Aqui você pode adicionar outras views que precise
+class ExportFiltersDataAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tipos = Product.objects.values_list('tipo_produto', flat=True).distinct()
+        marcas = Product.objects.values_list('marca', flat=True).distinct()
+        fornecedores = Product.objects.values_list('fornecedor', flat=True).distinct()
+
+        return Response({
+            'tipos_produto': list(tipos),
+            'marcas': list(marcas),
+            'fornecedores': list(fornecedores),
+        })
