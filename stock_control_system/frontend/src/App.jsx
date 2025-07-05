@@ -8,8 +8,8 @@ import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import Dashboard from './components/Dashboard';
 import ProductList from './components/ProductList';
-import ProductForm from './components/ProductForm';
 import ExportPage from './components/ExportPage';
+import ProductForm from "./products/ProductForm";
 import ReloadPrompt from './components/ReloadPrompt'; // Componente PWA
 import './App.css'; // Certifique-se que este arquivo existe e não tem erros
 

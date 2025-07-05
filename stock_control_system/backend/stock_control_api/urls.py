@@ -1,8 +1,14 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from products.views import ProductExportAPIView, SystemBackupAPIView  # Importações novas
-from products.views import dashboard_stats
+
+# Importações de views
+from products.views import (
+    dashboard_stats,
+    ExportFilterDataAPIView,
+    SystemBackupAPIView,
+)
+
 def api_root(request):
     """
     Endpoint raiz da API com informações básicas.
@@ -13,7 +19,7 @@ def api_root(request):
         'endpoints': {
             'authentication': '/api/auth/',
             'products': '/api/products/',
-            'export_products': '/api/products/export/',
+            'export_filters': '/api/export/filters/',
             'system_backup': '/api/backup/',
             'admin': '/admin/',
         }
@@ -21,12 +27,22 @@ def api_root(request):
 
 
 urlpatterns = [
+    # Admin
     path('admin/', admin.site.urls),
+
+    # Raiz da API
     path('api/', api_root, name='api-root'),
+
+    # Autenticação
     path('api/auth/', include('authentication.urls')),
+
+    # Endpoints de produtos
     path('api/products/', include('products.urls')),
-     path('api/produtos/', include('products.urls')),  # <- CORRETO
-    # Novos endpoints de exportação/backup
-    path('api/products/export/', ProductExportAPIView.as_view(), name='export-products'),
+    path('api/produtos/', include('products.urls')),  # Alias opcional (ex: frontend que usa esse path)
+
+    # Filtros para exportação (endpoint separado da lógica de exportação CSV)
+    path('api/export/filters/', ExportFilterDataAPIView.as_view(), name='export-filters'),
+
+    # Backup do sistema
     path('api/backup/', SystemBackupAPIView.as_view(), name='system-backup'),
 ]

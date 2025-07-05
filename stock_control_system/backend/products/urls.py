@@ -10,7 +10,7 @@ from .views import (
     ProductExportAPIView,
     SystemBackupAPIView,
     MovimentacaoEstoqueViewSet,
-    ExportFiltersDataAPIView,
+    ExportFilterDataAPIView,
 )
 
 # Router para movimentações de estoque (ViewSet)
@@ -30,12 +30,13 @@ urlpatterns = [
     path('expired/', products_expired, name='products-expired'),
     path('low-stock/', low_stock_products, name='low-stock-products'),
 
-    # Exportação e backup
+    # Exportação e filtros
     path('export/', ProductExportAPIView.as_view(), name='product-export'),
+    path('export/filters/', ExportFilterDataAPIView.as_view(), name='export-filters'),
+
+    # Backup do sistema
     path('backup/', SystemBackupAPIView.as_view(), name='system-backup'),
 
-    # Dados para filtros da página de exportação
-    path('export/filters/', ExportFiltersDataAPIView.as_view(), name='export-filters-data'), # <-- Esta linha deve estar presente e correta
-    # Rotas automáticas para movimentações de estoque (ViewSet)
+    # API RESTful para movimentações
     path('', include(router.urls)),
 ]

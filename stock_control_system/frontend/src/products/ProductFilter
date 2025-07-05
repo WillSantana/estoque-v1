@@ -1,0 +1,130 @@
+import React from 'react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export default function ProductFilters({ filters, setFilters, products }) {
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const getUniqueValues = (field) => {
+    return [...new Set(products.map(p => p[field]).filter(Boolean))];
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-2">
+        <Label htmlFor="marca">Marca</Label>
+        <Select value={filters.marca} onValueChange={(value) => handleFilterChange('marca', value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todas as marcas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={null}>Todas as marcas</SelectItem>
+            {getUniqueValues('marca').map(marca => (
+              <SelectItem key={marca} value={marca}>{marca}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="fornecedor">Fornecedor</Label>
+        <Select value={filters.fornecedor} onValueChange={(value) => handleFilterChange('fornecedor', value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos os fornecedores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={null}>Todos os fornecedores</SelectItem>
+            {getUniqueValues('fornecedor').map(fornecedor => (
+              <SelectItem key={fornecedor} value={fornecedor}>{fornecedor}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tipo_produto">Tipo</Label>
+        <Select value={filters.tipo_produto} onValueChange={(value) => handleFilterChange('tipo_produto', value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Todos os tipos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={null}>Todos os tipos</SelectItem>
+            {getUniqueValues('tipo_produto').map(tipo => (
+              <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="preco_min">Preço Mínimo</Label>
+        <Input
+          id="preco_min"
+          type="number"
+          step="0.01"
+          placeholder="R$ 0,00"
+          value={filters.preco_min}
+          onChange={(e) => handleFilterChange('preco_min', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="preco_max">Preço Máximo</Label>
+        <Input
+          id="preco_max"
+          type="number"
+          step="0.01"
+          placeholder="R$ 999,99"
+          value={filters.preco_max}
+          onChange={(e) => handleFilterChange('preco_max', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="data_compra_inicio">Data Compra (Início)</Label>
+        <Input
+          id="data_compra_inicio"
+          type="date"
+          value={filters.data_compra_inicio}
+          onChange={(e) => handleFilterChange('data_compra_inicio', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="data_compra_fim">Data Compra (Fim)</Label>
+        <Input
+          id="data_compra_fim"
+          type="date"
+          value={filters.data_compra_fim}
+          onChange={(e) => handleFilterChange('data_compra_fim', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="data_validade_inicio">Validade (Início)</Label>
+        <Input
+          id="data_validade_inicio"
+          type="date"
+          value={filters.data_validade_inicio}
+          onChange={(e) => handleFilterChange('data_validade_inicio', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="data_validade_fim">Validade (Fim)</Label>
+        <Input
+          id="data_validade_fim"
+          type="date"
+          value={filters.data_validade_fim}
+          onChange={(e) => handleFilterChange('data_validade_fim', e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getProducts, getSuppliers } from '../services/products'
-import ProductsTable from '../components/ProductsTable'
+import ProductsTable from '../products/ProductsTable'
 import Filters from '../components/Filters'
 import ProductForm from '../components/ProductForm'
 import MovimentacaoForm from '../components/MovimentacaoForm'

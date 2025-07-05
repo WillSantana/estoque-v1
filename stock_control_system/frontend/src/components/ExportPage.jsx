@@ -1,30 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle
+} from './ui/card';
 import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { api } from '../lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  Download, 
-  FileText, 
-  FileArchive, 
-  Loader2, 
-  Filter, 
-  Calendar, 
-  Settings, 
-  Info, 
-  Clock,
-  FileUp,
-  CheckCircle,
-  AlertTriangle,
-  FileJson
+import {
+  Download, FileText, FileArchive, FileUp, FileJson,
+  Filter, Calendar, Clock
 } from 'lucide-react';
-
-// --- Subcomponentes ---
 
 const ExportOptions = ({ onExport, loading }) => (
   <Card>
@@ -33,39 +23,28 @@ const ExportOptions = ({ onExport, loading }) => (
       <CardDescription>Escolha o formato desejado para exportar seus dados</CardDescription>
     </CardHeader>
     <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <Button 
-        className="h-24 flex-col gap-2 bg-green-600 hover:bg-green-700 text-white"
-        onClick={() => onExport('csv')}
-        disabled={loading}
-      >
-        <FileText size={24} />
-        <div className="text-left">
-          <p className="font-bold">Exportar CSV</p>
-          <p className="text-xs font-light">Planilha simples</p>
-        </div>
-      </Button>
-      <Button 
-        className="h-24 flex-col gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-        onClick={() => onExport('xlsx')}
-        disabled={loading}
-      >
-        <FileUp size={24} />
-        <div className="text-left">
-          <p className="font-bold">Exportar Excel</p>
-          <p className="text-xs font-light">Formato .xlsx</p>
-        </div>
-      </Button>
-      <Button 
-        className="h-24 flex-col gap-2 bg-orange-500 hover:bg-orange-600 text-white"
-        onClick={() => onExport('json')}
-        disabled={loading}
-      >
-        <FileJson size={24} />
-        <div className="text-left">
-          <p className="font-bold">Backup Completo</p>
-          <p className="text-xs font-light">Arquivo JSON</p>
-        </div>
-      </Button>
+      {['csv', 'xlsx', 'json'].map((format) => {
+        const config = {
+          csv: { icon: <FileText size={24} />, bg: 'bg-green-600', hover: 'hover:bg-green-700', title: 'CSV', subtitle: 'Planilha simples' },
+          xlsx: { icon: <FileUp size={24} />, bg: 'bg-blue-600', hover: 'hover:bg-blue-700', title: 'Excel', subtitle: 'Formato .xlsx' },
+          json: { icon: <FileJson size={24} />, bg: 'bg-orange-500', hover: 'hover:bg-orange-600', title: 'Backup', subtitle: 'Arquivo JSON' },
+        }[format];
+
+        return (
+          <Button
+            key={format}
+            className={`h-24 flex-col gap-2 text-white ${config.bg} ${config.hover}`}
+            onClick={() => onExport(format)}
+            disabled={loading}
+          >
+            {config.icon}
+            <div className="text-left">
+              <p className="font-bold">Exportar {config.title}</p>
+              <p className="text-xs font-light">{config.subtitle}</p>
+            </div>
+          </Button>
+        );
+      })}
     </CardContent>
   </Card>
 );
@@ -94,7 +73,10 @@ const ExportHistory = ({ history }) => (
                 <div>
                   <p className="font-medium">{item.filename}</p>
                   <p className="text-sm text-gray-500">
-                    {formatDistanceToNow(new Date(item.date), { addSuffix: true, locale: ptBR })}
+                    {formatDistanceToNow(new Date(item.date), {
+                      addSuffix: true,
+                      locale: ptBR
+                    })}
                   </p>
                 </div>
               </div>
@@ -109,77 +91,6 @@ const ExportHistory = ({ history }) => (
   </Card>
 );
 
-const Sidebar = ({ stats, config, setConfig }) => (
-  <div className="space-y-6">
-    {/* Configurações */}
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2"><Settings size={20} /> Configurações</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="auto-backup" className="cursor-pointer">
-            <p>Backup Automático</p>
-            <p className="text-xs text-gray-500">Backup semanal dos dados</p>
-          </Label>
-          <Switch id="auto-backup" checked={config.autoBackup} onCheckedChange={(c) => setConfig('autoBackup', c)} />
-        </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="compression" className="cursor-pointer">
-            <p>Compressão</p>
-            <p className="text-xs text-gray-500">Reduzir tamanho dos arquivos</p>
-          </Label>
-          <Switch id="compression" checked={config.compression} onCheckedChange={(c) => setConfig('compression', c)} />
-        </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="include-images" className="cursor-pointer">
-            <p>Incluir Imagens</p>
-            <p className="text-xs text-gray-500">Exportar arquivos anexados</p>
-          </Label>
-          <Switch id="include-images" checked={config.includeImages} onCheckedChange={(c) => setConfig('includeImages', c)} />
-        </div>
-      </CardContent>
-    </Card>
-
-    {/* Status */}
-    <Card>
-      <CardHeader><CardTitle className="text-lg">Status do Sistema</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-md">
-          <p className="text-sm font-medium text-green-800 flex items-center gap-2"><CheckCircle size={16} /> Dados Seguros</p>
-          <span className="text-xs font-bold text-green-800 bg-green-200 px-2 py-0.5 rounded-full">OK</span>
-        </div>
-        <div className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-sm font-medium text-blue-800 flex items-center gap-2"><FileArchive size={16} /> Backup Habilitado</p>
-          <span className="text-xs font-bold text-blue-800 bg-blue-200 px-2 py-0.5 rounded-full">Ativo</span>
-        </div>
-        <div className="flex items-center justify-between p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-sm font-medium text-yellow-800 flex items-center gap-2"><Clock size={16} /> Último Backup</p>
-          <span className="text-xs font-bold text-yellow-800">7 dias atrás</span>
-        </div>
-        <div className="p-3 mt-2 bg-blue-50 text-blue-700 rounded-md text-sm flex items-start gap-2">
-          <Info size={20} className="flex-shrink-0 mt-0.5" />
-          <p>Recomendamos fazer backup dos dados semanalmente e manter cópias em locais seguros.</p>
-        </div>
-      </CardContent>
-    </Card>
-
-    {/* Informações */}
-    <Card>
-      <CardHeader><CardTitle className="text-lg">Informações dos Dados</CardTitle></CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <div className="flex justify-between"><span>Produtos totais:</span> <span className="font-bold">{stats.total}</span></div>
-        <div className="flex justify-between"><span>Produtos filtrados:</span> <span className="font-bold">{stats.filtered}</span></div>
-        <div className="flex justify-between"><span>Marcas únicas:</span> <span className="font-bold">{stats.brands}</span></div>
-        <div className="flex justify-between"><span>Fornecedores:</span> <span className="font-bold">{stats.suppliers}</span></div>
-      </CardContent>
-    </Card>
-  </div>
-);
-
-
-// --- Componente Principal ---
-
 export default function ExportPage() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -190,38 +101,32 @@ export default function ExportPage() {
     includeExpired: true,
     includeObservations: true,
   });
-  
-  const [config, setConfigState] = useState({
-    autoBackup: false,
-    compression: true,
-    includeImages: false,
-  });
 
-  // Dados carregados da API para filtros, histórico e stats
-  const [data, setData] = useState({
-    brands: [],
-    suppliers: [],
-    types: [],
-    history: [],
-    stats: { total: 0, filtered: 0, brands: 0, suppliers: 0 }
-  });
+  const [data, setData] = useState(null);
 
-  // Carrega dados ao montar o componente
   useEffect(() => {
     const fetchFilterData = async () => {
       try {
-        const response = await api.get('/api/export/filters/');
-        setData(prev => ({
-          ...prev,
-          brands: response.data.brands,
-          suppliers: response.data.suppliers,
-          types: response.data.types,
-          history: response.data.history || [], // se existir
-          stats: response.data.stats,
-        }));
+        const urlToFetch = 'export/filters/';
+        console.debug("DEBUG: URL sendo solicitada:", api.defaults.baseURL + urlToFetch);
+        const response = await api.get(urlToFetch);
+        setData({
+          brands: response.data.brands || [],
+          suppliers: response.data.suppliers || [],
+          types: response.data.types || [],
+          history: response.data.history || [],
+          stats: response.data.stats || { total: 0, filtered: 0 },
+        });
       } catch (error) {
         console.error("Erro ao buscar dados para filtros:", error);
         alert("Não foi possível carregar os dados da página.");
+        setData({
+          brands: [],
+          suppliers: [],
+          types: [],
+          history: [],
+          stats: { total: 0, filtered: 0 },
+        });
       }
     };
     fetchFilterData();
@@ -231,51 +136,52 @@ export default function ExportPage() {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleConfigChange = (key, value) => {
-    setConfigState(prev => ({ ...prev, [key]: value }));
-  };
-
   const handleExport = async (format) => {
     setLoading(true);
     try {
-      const response = await api.post('/api/export/', {
-        format: format,
-        filters: filters,
+      const response = await api.post('export/filters/', {
+        format,
+        filters,
       }, {
         responseType: 'blob',
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
 
       const contentDisposition = response.headers['content-disposition'];
       let fileName = `export.${format}`;
       if (contentDisposition) {
-        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (fileNameMatch && fileNameMatch.length === 2) {
-          fileName = fileNameMatch[1];
-        }
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) fileName = match[1];
       }
-      
+
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      link.remove();
       window.URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error(`Erro ao exportar para ${format}:`, error);
-      alert(`Falha ao gerar o arquivo ${format.toUpperCase()}. Verifique o console para mais detalhes.`);
+      alert(`Falha ao gerar o arquivo ${format.toUpperCase()}.`);
     } finally {
       setLoading(false);
     }
   };
 
+  if (!data) {
+    return (
+      <div className="text-center py-10 text-gray-500">
+        <p>Carregando filtros e histórico...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
       <div className="lg:col-span-2 space-y-6">
-        {/* Card de Filtros */}
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div className="flex items-center gap-2">
@@ -286,7 +192,7 @@ export default function ExportPage() {
               </div>
             </div>
             <span className="text-sm font-medium bg-green-100 text-green-800 px-3 py-1 rounded-full">
-              {data.stats.filtered} produtos
+              {data.stats.filtered ?? 0} produtos
             </span>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -301,37 +207,28 @@ export default function ExportPage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Marca</Label>
-                <Select value={filters.brand} onValueChange={(v) => handleFilterChange('brand', v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as marcas</SelectItem>
-                    {data.brands.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fornecedor</Label>
-                <Select value={filters.supplier} onValueChange={(v) => handleFilterChange('supplier', v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os fornecedores</SelectItem>
-                    {data.suppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo de Produto</Label>
-                <Select value={filters.type} onValueChange={(v) => handleFilterChange('type', v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os tipos</SelectItem>
-                    {data.types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {[
+                { label: 'Marca', key: 'brand', options: data.brands },
+                { label: 'Fornecedor', key: 'supplier', options: data.suppliers },
+                { label: 'Tipo de Produto', key: 'type', options: data.types },
+              ].map(({ label, key, options }) => (
+                <div className="space-y-2" key={key}>
+                  <Label>{label}</Label>
+                  <Select value={filters[key]} onValueChange={(v) => handleFilterChange(key, v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {options
+                        .filter(opt => typeof opt === 'string' && opt.trim() !== '')
+                        .map(opt => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-2 pt-4">
@@ -350,10 +247,6 @@ export default function ExportPage() {
 
         <ExportOptions onExport={handleExport} loading={loading} />
         <ExportHistory history={data.history} />
-      </div>
-
-      <div className="lg:col-span-1">
-        <Sidebar stats={data.stats} config={config} setConfig={handleConfigChange} />
       </div>
     </div>
   );

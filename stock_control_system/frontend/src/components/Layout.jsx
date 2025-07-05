@@ -65,7 +65,7 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Produtos', href: '/products', icon: Package },
-    { name: 'Novo Produto', href: '/products/new', icon: PlusCircle },
+    // { name: 'Novo Produto', href: '/products/new', icon: PlusCircle },
     { name: 'Exportar/Backup', href: '/exports', icon: Download }, // <-- Novo item
   ];
 

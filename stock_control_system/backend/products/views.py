@@ -185,7 +185,7 @@ class SystemBackupAPIView(APIView):
         return response
 
 # Aqui você pode adicionar outras views que precise
-class ExportFiltersDataAPIView(APIView):
+class ExportFilterDataAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
