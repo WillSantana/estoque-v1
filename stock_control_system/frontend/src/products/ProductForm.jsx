@@ -1,272 +1,141 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { productsAPI } from '../lib/api';
+// src/products/ProductForm.jsx
 
-import { Button } from '../components/ui/button';
+import React, { useState } from 'react';
+// Removendo a importação do Button personalizado para teste
+// import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Alert, AlertDescription } from '../components/ui/alert';
-
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
-import '../App.css';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/card';
+import { Loader2 } from 'lucide-react'; // Ícone de carregamento
 
 export default function ProductForm() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isEditing = !!id;
+  const [productName, setProductName] = useState('');
+  const [productDescription, setProductDescription] = useState('');
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const [formData, setFormData] = useState({
-    tipo_produto: '',
-    marca: '',
-    quantidade: '',
-    peso: '',
-    fornecedor: '',
-    preco: '',
-    data_compra: '',
-    data_validade: '',
-    observacoes: '',
-  });
+  const generateProductDescription = async () => {
+    console.log('Função generateProductDescription chamada!'); // Adicionado para depuração
 
-  const [loading, setLoading] = useState(false);
-  const [loadingProduct, setLoadingProduct] = useState(isEditing);
-  const [errors, setErrors] = useState({});
-  const [success, setSuccess] = useState('');
-
-  useEffect(() => {
-    if (isEditing) {
-      loadProduct();
-    }
-  }, [id, isEditing]);
-
-  const loadProduct = async () => {
-    try {
-      setLoadingProduct(true);
-      const product = await productsAPI.getById(id);
-      setFormData({
-        tipo_produto: product.tipo_produto || '',
-        marca: product.marca || '',
-        quantidade: product.quantidade?.toString() || '',
-        peso: product.peso?.toString() || '',
-        fornecedor: product.fornecedor || '',
-        preco: product.preco?.toString() || '',
-        data_compra: product.data_compra || '',
-        data_validade: product.data_validade || '',
-        observacoes: product.observacoes || '',
-      });
-    } catch (error) {
-      console.error('Erro ao carregar produto:', error);
-      setErrors({ general: 'Erro ao carregar produto' });
-    } finally {
-      setLoadingProduct(false);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.tipo_produto) newErrors.tipo_produto = 'Tipo do produto é obrigatório';
-    if (!formData.marca) newErrors.marca = 'Marca é obrigatória';
-    if (!formData.quantidade || parseInt(formData.quantidade) <= 0)
-      newErrors.quantidade = 'Quantidade deve ser maior que zero';
-    if (!formData.peso || parseFloat(formData.peso) <= 0)
-      newErrors.peso = 'Peso deve ser maior que zero';
-    if (!formData.fornecedor) newErrors.fornecedor = 'Fornecedor é obrigatório';
-    if (!formData.preco || parseFloat(formData.preco) <= 0)
-      newErrors.preco = 'Preço deve ser maior que zero';
-    if (!formData.data_compra) newErrors.data_compra = 'Data de compra é obrigatória';
-    if (!formData.data_validade) newErrors.data_validade = 'Data de validade é obrigatória';
-
-    if (
-      formData.data_compra &&
-      formData.data_validade &&
-      new Date(formData.data_validade) <= new Date(formData.data_compra)
-    ) {
-      newErrors.data_validade = 'Data de validade deve ser posterior à data de compra';
-    }
-
-    return newErrors;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    setSuccess('');
-
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    if (!productName.trim()) {
+      setMessage('Por favor, insira o nome do produto para gerar uma descrição.');
       return;
     }
 
+    setIsGeneratingDescription(true);
+    setMessage('Gerando descrição do produto...');
+
     try {
-      setLoading(true);
+      const prompt = `Crie uma descrição de produto detalhada e persuasiva para um item chamado "${productName}". Inclua características, benefícios e um tom de vendas.`;
 
-      const productData = {
-        ...formData,
-        quantidade: parseInt(formData.quantidade),
-        peso: parseFloat(formData.peso),
-        preco: parseFloat(formData.preco),
-      };
+      let chatHistory = [];
+      chatHistory.push({ role: "user", parts: [{ text: prompt }] });
 
-      if (isEditing) {
-        await productsAPI.update(id, productData);
-        setSuccess('Produto atualizado com sucesso!');
+      const payload = { contents: chatHistory };
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (result.candidates && result.candidates.length > 0 &&
+          result.candidates[0].content && result.candidates[0].content.parts &&
+          result.candidates[0].content.parts.length > 0) {
+        const generatedText = result.candidates[0].content.parts[0].text;
+        setProductDescription(generatedText);
+        setMessage('Descrição gerada com sucesso!');
       } else {
-        await productsAPI.create(productData);
-        setSuccess('Produto criado com sucesso!');
+        setMessage('Não foi possível gerar a descrição. Tente novamente.');
+        console.error('Erro na resposta da API Gemini:', result);
       }
-
-      setTimeout(() => navigate('/products'), 1500);
     } catch (error) {
-      console.error('Erro ao salvar produto:', error);
-      if (error.response?.data) {
-        setErrors(error.response.data);
-      } else {
-        setErrors({ general: 'Erro ao salvar produto' });
-      }
+      setMessage('Ocorreu um erro ao conectar com a API. Verifique sua conexão.');
+      console.error('Erro ao chamar a API Gemini:', error);
     } finally {
-      setLoading(false);
+      setIsGeneratingDescription(false);
     }
   };
 
-  if (loadingProduct) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Carregando produto...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Produto a ser salvo:', { productName, productDescription });
+    setMessage('Produto salvo (funcionalidade de salvar não implementada nesta versão).');
+  };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate('/products')} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para produtos
-        </Button>
-      </div>
+    <div className="p-6 space-y-6">
+      <h2 className="text-2xl font-bold">Adicionar/Editar Produto</h2>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Save className="mr-2 h-5 w-5" />
-            {isEditing ? 'Editar Produto' : 'Novo Produto'}
-          </CardTitle>
-          <CardDescription>
-            {isEditing
-              ? 'Atualize as informações do produto'
-              : 'Preencha as informações do novo produto'}
-          </CardDescription>
+          <CardTitle>Detalhes do Produto</CardTitle>
         </CardHeader>
-
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {errors.general && (
-              <Alert variant="destructive">
-                <AlertDescription>{errors.general}</AlertDescription>
-              </Alert>
+          {/* Adicionado id ao formulário */}
+          <form id="productForm" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-1">
+                Nome do Produto
+              </label>
+              <Input
+                id="productName"
+                type="text"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="Ex: Camiseta de Algodão"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="productDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                Descrição do Produto
+              </label>
+              <Textarea
+                id="productDescription"
+                value={productDescription}
+                onChange={(e) => setProductDescription(e.target.value)}
+                placeholder="Uma breve descrição do produto..."
+                rows={5}
+              />
+            </div>
+
+            {/* Botão HTML simples com estilos adicionais para depuração */}
+            <button
+              type="button"
+              onClick={generateProductDescription}
+              disabled={isGeneratingDescription}
+              // Adicionado borda e z-index para depuração visual
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed border-2 border-red-500 relative z-50"
+            >
+              {isGeneratingDescription ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" />
+                  {' '}Gerando...
+                </>
+              ) : (
+                'Gerar Descrição ✨'
+              )}
+            </button>
+
+            {message && (
+              <p className={`text-sm mt-2 ${message.includes('sucesso') ? 'text-green-600' : 'text-red-600'}`}>
+                {message}
+              </p>
             )}
-
-            {success && (
-              <Alert className="border-green-200 bg-green-50 text-green-800">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Campos do formulário */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tipo_produto">Tipo do Produto *</Label>
-                <Input id="tipo_produto" name="tipo_produto" value={formData.tipo_produto} onChange={handleChange} />
-                {errors.tipo_produto && <p className="text-sm text-destructive">{errors.tipo_produto}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="marca">Marca *</Label>
-                <Input id="marca" name="marca" value={formData.marca} onChange={handleChange} />
-                {errors.marca && <p className="text-sm text-destructive">{errors.marca}</p>}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantidade">Quantidade *</Label>
-                <Input id="quantidade" name="quantidade" type="number" value={formData.quantidade} onChange={handleChange} />
-                {errors.quantidade && <p className="text-sm text-destructive">{errors.quantidade}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="peso">Peso (kg) *</Label>
-                <Input id="peso" name="peso" type="number" step="0.01" value={formData.peso} onChange={handleChange} />
-                {errors.peso && <p className="text-sm text-destructive">{errors.peso}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="preco">Preço (R$) *</Label>
-                <Input id="preco" name="preco" type="number" step="0.01" value={formData.preco} onChange={handleChange} />
-                {errors.preco && <p className="text-sm text-destructive">{errors.preco}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fornecedor">Fornecedor *</Label>
-              <Input id="fornecedor" name="fornecedor" value={formData.fornecedor} onChange={handleChange} />
-              {errors.fornecedor && <p className="text-sm text-destructive">{errors.fornecedor}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="data_compra">Data de Compra *</Label>
-                <Input id="data_compra" name="data_compra" type="date" value={formData.data_compra} onChange={handleChange} />
-                {errors.data_compra && <p className="text-sm text-destructive">{errors.data_compra}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="data_validade">Data de Validade *</Label>
-                <Input id="data_validade" name="data_validade" type="date" value={formData.data_validade} onChange={handleChange} />
-                {errors.data_validade && <p className="text-sm text-destructive">{errors.data_validade}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea id="observacoes" name="observacoes" rows={3} value={formData.observacoes} onChange={handleChange} />
-            </div>
-
-            <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline" onClick={() => navigate('/products')} disabled={loading}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isEditing ? 'Atualizando...' : 'Salvando...'}
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    {isEditing ? 'Atualizar' : 'Salvar'}
-                  </>
-                )}
-              </Button>
-            </div>
           </form>
         </CardContent>
+        <CardFooter>
+          {/* Botão de submit referenciando o formulário pelo id */}
+          <button type="submit" form="productForm" className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">
+            Salvar Produto
+          </button>
+        </CardFooter>
       </Card>
     </div>
   );

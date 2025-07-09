@@ -1,58 +1,48 @@
-// Crie o arquivo: src/components/ReloadPrompt.jsx
-
+// src/components/ReloadPrompt.jsx
 import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { Button } from './ui/button'; // Importe seu componente de botão
+import PWAInstallButton from './PWAInstallButton';
 
-function ReloadPrompt() {
+export default function ReloadPrompt() {
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      console.log('Service Worker registrado:', r);
-    },
-    onRegisterError(error) {
-      console.log('Erro no registro do Service Worker:', error);
-    },
-  });
+  } = useRegisterSW();
 
   const close = () => {
     setOfflineReady(false);
     setNeedRefresh(false);
   };
 
-  if (offlineReady) {
-    return (
-      <div className="fixed right-4 bottom-4 z-50 p-4 rounded-lg shadow-lg bg-white border">
-        <h3 className="font-bold">App pronto para uso offline!</h3>
-        <p className="text-sm text-gray-600">O conteúdo foi salvo para uso sem internet.</p>
-        <Button onClick={close} variant="outline" size="sm" className="mt-2">
-          Fechar
-        </Button>
-      </div>
-    );
-  }
-
-  if (needRefresh) {
-    return (
-      <div className="fixed right-4 bottom-4 z-50 p-4 rounded-lg shadow-lg bg-white border">
-        <h3 className="font-bold">Nova versão disponível!</h3>
-        <p className="text-sm text-gray-600">Recarregue para aplicar as atualizações.</p>
-        <div className="flex gap-2 mt-3">
-          <Button onClick={() => updateServiceWorker(true)} size="sm">
-            Atualizar
-          </Button>
-          <Button onClick={close} variant="outline" size="sm">
-            Ignorar
-          </Button>
+  return (
+    <>
+      <PWAInstallButton />
+      {(offlineReady || needRefresh) && (
+        <div className="fixed bottom-6 left-6 bg-white p-4 rounded shadow-md z-50 border border-gray-300">
+          <p className="text-sm text-gray-700 mb-2">
+            {offlineReady
+              ? 'App pronto para uso offline.'
+              : 'Nova versão disponível.'}
+          </p>
+          <div className="flex gap-2">
+            {needRefresh && (
+              <button
+                className="bg-blue-500 text-white px-3 py-1 rounded"
+                onClick={() => updateServiceWorker(true)}
+              >
+                Recarregar
+              </button>
+            )}
+            <button
+              className="bg-gray-300 text-gray-700 px-3 py-1 rounded"
+              onClick={close}
+            >
+              Fechar
+            </button>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return null;
+      )}
+    </>
+  );
 }
-
-export default ReloadPrompt;

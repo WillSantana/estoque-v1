@@ -1,0 +1,106 @@
+import React, { useState, useEffect } from 'react';
+import { syncOfflineQueue, getOfflineQueue } from './offline';
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Cloud, CloudOff, RefreshCw, Check, AlertTriangle, CloudCog } from "lucide-react";
+
+export default function SyncManager() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [queueSize, setQueueSize] = useState(0);
+
+  useEffect(() => {
+    const checkQueue = () => {
+      try {
+        setQueueSize(getOfflineQueue().length);
+      } catch (error) {
+        setQueueSize(0);
+      }
+    };
+    
+    checkQueue();
+    const interval = setInterval(checkQueue, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      setSyncStatus({ type: 'info', message: 'Conexão restaurada. Verificando dados para sincronizar...' });
+      setIsSyncing(true);
+
+      try {
+        const result = await syncOfflineQueue();
+        
+        if (result.error) {
+          setSyncStatus({ type: 'error', message: `Erro na sincronização: ${result.error.message}` });
+        } else if (result.synced > 0) {
+          setSyncStatus({ type: 'success', message: `${result.synced} alteraç${result.synced > 1 ? 'ões' : 'ão'} offline foram sincronizadas!` });
+        } else {
+          setSyncStatus({ type: 'success', message: 'Seus dados já estão atualizados.' });
+        }
+      } catch (error) {
+        setSyncStatus({ type: 'error', message: 'Erro ao sincronizar dados.' });
+      }
+      
+      setIsSyncing(false);
+      setQueueSize(0);
+      setTimeout(() => setSyncStatus(null), 5000);
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus(null);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check on load
+    if (navigator.onLine && getOfflineQueue().length > 0) {
+      handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return (
+    <>
+      {queueSize > 0 && !isSyncing && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <Badge className="bg-yellow-500 text-white shadow-lg p-2">
+            <CloudOff className="w-4 h-4 mr-2" />
+            {queueSize} alteraç{queueSize > 1 ? 'ões' : 'ão'} pendente{queueSize > 1 ? 's' : ''}
+          </Badge>
+        </div>
+      )}
+
+      {syncStatus && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <Alert className={
+            syncStatus.type === 'success' ? 'border-green-200 bg-green-50' : 
+            syncStatus.type === 'error' ? 'border-red-200 bg-red-50' :
+            'border-blue-200 bg-blue-50'
+          }>
+            {syncStatus.type === 'success' && <Check className="h-4 w-4 text-green-600" />}
+            {syncStatus.type === 'error' && <AlertTriangle className="h-4 w-4 text-red-600" />}
+            {syncStatus.type === 'info' && <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />}
+            
+            <AlertDescription className={
+              syncStatus.type === 'success' ? 'text-green-800' :
+              syncStatus.type === 'error' ? 'text-red-800' :
+              'text-blue-800'
+            }>
+              {syncStatus.message}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+    </>
+  );
+}

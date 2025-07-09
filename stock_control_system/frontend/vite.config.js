@@ -1,5 +1,4 @@
 // vite.config.js
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -9,6 +8,34 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      devOptions: { enabled: true },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
+        navigateFallback: '/index.html',
+        navigateFallbackAllowlist: [/^\/((?!api).)*$/], // ✅ permite rotas SPA, ignora /api
+        runtimeCaching: [
+          {
+            urlPattern: /^http:\/\/127\.0\.0\.1:8000\/api\/.*/,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'no-cache-api',
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-fonts-stylesheets',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'StockFeed - Controle de Estoque',
         short_name: 'StockFeed',
@@ -33,39 +60,11 @@ export default defineConfig({
             src: '/icon-512x512.png',
             sizes: '512x512',
             purpose: 'any maskable',
+            type: 'image/png',
           },
         ],
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,jsx}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^http:\/\/127\.0\.0\.1:8000\/api\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-            },
-          },
-        ],
-      },
+      cacheId: 'stockfeed-v1.0.3',
     }),
   ],
   resolve: {

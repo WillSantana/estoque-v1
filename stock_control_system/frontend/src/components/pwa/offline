@@ -1,0 +1,105 @@
+import { Product } from '@/entities/Product';
+
+const CACHE_KEY = 'stockfeed_products_cache';
+const QUEUE_KEY = 'stockfeed_offline_queue';
+const OFFLINE_ENABLED_KEY = 'stockfeed_offline_enabled';
+
+// --- Cache Management ---
+
+export const isOfflineEnabled = () => {
+  try {
+    return localStorage.getItem(OFFLINE_ENABLED_KEY) === 'true';
+  } catch (e) {
+    return false;
+  }
+};
+
+export const setOfflineEnabled = (enabled) => {
+  try {
+    localStorage.setItem(OFFLINE_ENABLED_KEY, enabled);
+  } catch (e) {
+    console.error("Failed to set offline mode in localStorage");
+  }
+};
+
+export const getCachedProducts = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const setCachedProducts = (products) => {
+  if (isOfflineEnabled()) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(products));
+    } catch (e) {
+      console.error("Failed to set cache in localStorage");
+    }
+  }
+};
+
+// --- Offline Queue Management ---
+
+export const getOfflineQueue = () => {
+  try {
+    const queue = localStorage.getItem(QUEUE_KEY);
+    return queue ? JSON.parse(queue) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const addToOfflineQueue = (action) => {
+  if (!isOfflineEnabled()) return;
+  try {
+    const queue = getOfflineQueue();
+    queue.push({ ...action, id: Date.now() });
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {
+    console.error("Failed to add to offline queue in localStorage");
+  }
+};
+
+export const clearOfflineQueue = () => {
+  try {
+    localStorage.removeItem(QUEUE_KEY);
+  } catch (e) {
+    console.error("Failed to clear offline queue in localStorage");
+  }
+};
+
+// --- Sync Logic ---
+
+export const syncOfflineQueue = async () => {
+  const queue = getOfflineQueue();
+  if (queue.length === 0) return { success: true, synced: 0 };
+
+  let syncedCount = 0;
+  for (const action of queue) {
+    try {
+      switch (action.type) {
+        case 'CREATE':
+          await Product.create(action.payload);
+          break;
+        case 'UPDATE':
+          await Product.update(action.payload.id, action.payload.data);
+          break;
+        case 'DELETE':
+          await Product.delete(action.payload.id);
+          break;
+      }
+      syncedCount++;
+    } catch (error) {
+      console.error('Failed to sync action:', action, error);
+      // If one action fails, we stop to avoid data inconsistency.
+      // A more robust system could handle individual failures.
+      return { success: false, synced: syncedCount, error };
+    }
+  }
+
+  clearOfflineQueue();
+  return { success: true, synced: syncedCount };
+};

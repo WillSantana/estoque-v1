@@ -1,29 +1,25 @@
+// src/components/LoginForm.jsx
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
+
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { Loader2, ShoppingCart } from 'lucide-react';
+
 import '../App.css';
 
 export default function LoginForm() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,17 +40,17 @@ export default function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-yellow-50 p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-xl border border-green-100">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary rounded-full">
-              <ShoppingCart className="h-8 w-8 text-primary-foreground" />
+            <div className="p-3 bg-green-600 rounded-full">
+              <ShoppingCart className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-primary">
+          <CardTitle className="text-2xl font-bold text-gray-800">
             Sistema de Controle de Estoque
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-muted-foreground">
             Faça login para acessar o sistema
           </CardDescription>
         </CardHeader>
@@ -65,7 +61,7 @@ export default function LoginForm() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="username">Usuário</Label>
               <Input
@@ -94,11 +90,7 @@ export default function LoginForm() {
               />
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -109,14 +101,11 @@ export default function LoginForm() {
               )}
             </Button>
 
-            <div className="text-center text-sm">
+            <div className="text-center text-sm mt-2">
               <span className="text-muted-foreground">
                 Não tem uma conta?{' '}
               </span>
-              <Link 
-                to="/register" 
-                className="text-primary hover:underline font-medium"
-              >
+              <Link to="/register" className="text-green-700 hover:underline font-medium">
                 Cadastre-se
               </Link>
             </div>
@@ -126,4 +115,3 @@ export default function LoginForm() {
     </div>
   );
 }
-

@@ -2,28 +2,22 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { Button } from './ui/button';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from './ui/dropdown-menu';
-import { 
-  Home, 
-  Package, 
-  PlusCircle, 
-  User, 
-  LogOut, 
+import ReloadPrompt from './ReloadPrompt';
+import PWAInstallButton from './PWAInstallButton';
+
+import {
+  Home,
+  Package,
+  Download,
+  LogOut,
   Menu,
   X,
-  ChevronDown,
-  Download // <-- Ícone importado
+  Smartphone,
 } from 'lucide-react';
+
 import '../App.css';
 
-// Componente para o Logo
+// Logo component for consistent branding
 const Logo = () => (
   <div className="flex items-center gap-2">
     <div className="bg-green-100 p-2 rounded-lg">
@@ -36,7 +30,7 @@ const Logo = () => (
   </div>
 );
 
-// Componente para o Perfil do Usuário na Sidebar
+// UserProfile component to display user information
 const UserProfile = ({ user }) => (
   <div className="flex items-center gap-3">
     <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
@@ -51,6 +45,7 @@ const UserProfile = ({ user }) => (
   </div>
 );
 
+// Main Layout component
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
@@ -65,8 +60,8 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Produtos', href: '/products', icon: Package },
-    // { name: 'Novo Produto', href: '/products/new', icon: PlusCircle },
-    { name: 'Exportar/Backup', href: '/exports', icon: Download }, // <-- Novo item
+    { name: 'Exportar/Backup', href: '/exports', icon: Download },
+    { name: 'PWA Settings', href: '/pwa-settings', icon: Smartphone },
   ];
 
   const isActive = (href) => location.pathname === href;
@@ -99,7 +94,12 @@ export default function Layout() {
       </nav>
       <div className="p-4 border-t border-gray-200">
         <UserProfile user={user} />
-        <Button variant="ghost" size="sm" className="w-full justify-start mt-4 text-gray-600" onClick={handleLogout}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start mt-4 text-gray-600"
+          onClick={handleLogout}
+        >
           <LogOut className="mr-2 h-4 w-4" /> Sair
         </Button>
       </div>
@@ -108,7 +108,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar para mobile */}
+      {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-800 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-white shadow-lg">
@@ -121,14 +121,14 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Sidebar para desktop */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <SidebarContent />
         </div>
       </div>
 
-      {/* Conteúdo principal */}
+      {/* Main content area */}
       <div className="lg:pl-72">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
           <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -145,12 +145,16 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1">
+        <main className="flex-1 relative">
           <div className="py-6">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </div>
+
+          {/* PWA prompts */}
+          <ReloadPrompt />
+          <PWAInstallButton />
         </main>
       </div>
     </div>
